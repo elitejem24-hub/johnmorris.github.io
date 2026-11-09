@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-2Ya8urJz2T4DtXDPlsIRwhSmfwHyyHVVht+pbH1wksw='; style-src 'sha256-ZRz7ouIekhXuoA3U6yVS47XsChNcVFUDwv9V/B7ovMU='; img-src 'none'; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; manifest-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1EYHAyKZ8On5S6faiazt06Q2k7v+2KhW9Mbbt+n2kls='; style-src 'sha256-5/WDX21tpFIvt7tHsE1NEObuoIyrd/PE6/lxAukzHwU='; img-src 'none'; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; manifest-src 'none'">
   <meta name="theme-color" content="#ffffff">
   <title>One More Step — corridor run</title>
   <style>
@@ -67,12 +67,6 @@
     .talk button { border:2px solid #050505;border-radius:999px;background:#050505;color:#fff;padding:12px 18px;font:900 12px system-ui,sans-serif;cursor:pointer; }
     .talk-actions button { background:#fff;color:#050505; }
     .talk-actions button:hover { background:#050505;color:#fff; }
-    .instructions { position:absolute;inset:0;z-index:9;background:rgba(255,255,255,.98);display:grid;place-items:center;text-align:left;padding:clamp(18px,5vw,42px);overflow-y:auto; }
-    .instructions-inner { width:min(100%,560px); }
-    .instructions h2 { margin:0 0 10px;font-size:clamp(38px,8vw,62px);line-height:.9;letter-spacing:-.07em; }
-    .instructions p { margin:0 0 16px;color:#333;font-size:14px;line-height:1.5; }
-    .instructions ul { margin:0 0 20px;padding-left:20px;color:#222;font-size:13px;line-height:1.65; }
-    .instructions button { border:2px solid #050505;border-radius:999px;background:#050505;color:#fff;padding:13px 20px;font:900 12px system-ui,sans-serif;cursor:pointer; }
     .finish button:focus-visible,.pad:focus-visible,.restart:focus-visible { outline:3px solid #050505;outline-offset:3px; }
     footer { text-align:center;margin-top:17px;color:#333;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase; }
     @media(max-width:600px) { body{padding:14px 8px 20px}.card{padding:16px 11px 15px}.touch-controls{display:flex;gap:6px}.touch-group{gap:5px}.pad{width:47px;height:43px}.jump{width:62px}.crouch{width:63px}.top{font-size:9px}.under{align-items:center} }
@@ -95,14 +89,13 @@
       <div class="quiz" id="quiz" aria-live="polite"><div class="quiz-inner"><div class="quiz-tag" id="quiz-tag">Checkpoint question</div><h2>TRUE OR FALSE?</h2><p id="quiz-question"></p><div class="quiz-actions"><button data-answer="true" type="button">TRUE</button><button data-answer="false" type="button">FALSE</button></div></div></div>
       <div class="death" id="death" aria-live="assertive"><div><div class="overlay-icon">☠</div><h2>YOU DIED.</h2><p id="death-copy">That was unfortunate.</p><button id="death-again" type="button">TRY AGAIN ↻</button><p class="death-hint">Press any key or click Try Again to continue.</p></div></div>
       <div class="talk" id="talk" role="dialog" aria-modal="true" aria-labelledby="talk-title"><div class="talk-inner"><h2 id="talk-title">A CHAT.</h2><p id="talk-copy"></p><div class="talk-actions" id="talk-actions"></div><button id="talk-close" type="button" hidden>CONTINUE →</button></div></div>
-      <div class="instructions show" id="instructions" role="dialog" aria-modal="true" aria-labelledby="instructions-title"><div class="instructions-inner"><p class="eyebrow">Before you step in it</p><h2 id="instructions-title">HOW TO PLAY.</h2><p>Reach the exit across three corridors. The traps are a surprise; your controls should not be.</p><ul><li><b>Move:</b> ← → or A / D</li><li><b>Jump:</b> Space, ↑, or W</li><li><b>Crouch:</b> ↓ or S</li><li>Answer checkpoint questions correctly to save your progress.</li><li>Nearby strangers, trees, fake doors, and fake flags bring up choices. Some choices have consequences.</li><li>If you get knocked out, press any key or click Try Again to respawn.</li></ul><button id="start-game" type="button">START THE GAME →</button></div></div>
     </section>
     <footer>No login. Three corridors. Many chances to get annoyed.</footer>
   </main>
   <script>
     (() => {
       const canvas=document.querySelector('#scene'),ctx=canvas.getContext('2d');
-      const message=document.querySelector('#message'),finish=document.querySelector('#finish'),quiz=document.querySelector('#quiz'),deathPanel=document.querySelector('#death'),talk=document.querySelector('#talk'),instructions=document.querySelector('#instructions');
+      const message=document.querySelector('#message'),finish=document.querySelector('#finish'),quiz=document.querySelector('#quiz'),deathPanel=document.querySelector('#death'),talk=document.querySelector('#talk');
       const quizQuestion=document.querySelector('#quiz-question'),quizTag=document.querySelector('#quiz-tag');
       const deathCopy=document.querySelector('#death-copy'),talkTitle=document.querySelector('#talk-title'),talkCopy=document.querySelector('#talk-copy'),talkActions=document.querySelector('#talk-actions'),talkClose=document.querySelector('#talk-close');
       const fallsEl=document.querySelector('#falls'),distanceEl=document.querySelector('#distance'),meter=document.querySelector('#meter');
@@ -163,7 +156,7 @@
         const q={id,text:`True or false: ${n} is an even number.`,answer,correct:answer?'True. Numbers remain committed to their bit.':'False. Even the number is trying to trip you.'};
         usedQuestionIds.add(q.id);return q;
       }
-      let width=900,height=420,dpr=1,last=0,camera=0,falls=0,won=false,flash=0,walkTime=0,effectTimer=0,effectType='',gameStarted=false,quizActive=false,talkActive=false,quizIndex=0,checkpointX=72,checkpointY=0;
+      let width=900,height=420,dpr=1,last=0,camera=0,falls=0,won=false,flash=0,walkTime=0,effectTimer=0,effectType='',quizActive=false,talkActive=false,quizIndex=0,checkpointX=72,checkpointY=0;
       let player,traps=[],stones=[],currentQuestions=[],currentSigns=[],scenery=[],activeTerrain=[],checkpointQuestionX=1000,trees=[],npcs=[],returnToStart=false,pendingInteraction=null;
       const floorY=()=>height*.72;
       function trapWidth(kind) {
@@ -380,7 +373,6 @@
         else { levelIndex=0;reset(true); }
       }
       function update(dt) {
-        if(!gameStarted)return;
         flash=Math.max(0,flash-dt);
         if(won)return;
         if(quizActive||talkActive)return;
@@ -532,7 +524,7 @@
       function render() {
         const fy=floorY();ctx.clearRect(0,0,width,height);ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);
         ctx.strokeStyle='#050505';ctx.lineWidth=2;line(0,13,width,13,2);line(0,height-14,width,height-14,2);
-        drawDepth();drawNature();drawBrickwork();
+        drawDepth();drawNature();drawBrickwork();drawStartInstructions();
         for(const p of getPlatforms()) {
           const px=p.x-camera;if(px+p.w<0||px>width)continue;
           ctx.fillStyle='#fff';ctx.strokeStyle='#050505';ctx.lineWidth=2;
@@ -603,6 +595,16 @@
         }
         ctx.restore();
       }
+      function drawStartInstructions() {
+        if(camera>420)return;
+        const x=16-camera,y=20,panelW=Math.min(430,width-32),small=height<300,fontSize=small?7.3:9,lineHeight=small?12:16;
+        const rows=['HOW TO PLAY','MOVE  ← → / A D','JUMP  SPACE / ↑ / W    CROUCH  ↓ / S','REACH THE EXIT. WATCH YOUR STEP.','TRUE / FALSE QUESTIONS SAVE CHECKPOINTS.','PEOPLE, TREES, DOORS & FLAGS OFFER CHOICES.','DIED? PRESS ANY KEY OR TRY AGAIN TO RESPAWN.'];
+        const panelH=12+rows.length*lineHeight;
+        ctx.save();ctx.fillStyle='#fff';ctx.strokeStyle='#050505';ctx.lineWidth=2;ctx.fillRect(x,y,panelW,panelH);ctx.strokeRect(x,y,panelW,panelH);
+        ctx.textAlign='left';ctx.textBaseline='top';ctx.fillStyle='#050505';
+        rows.forEach((row,i)=>{ctx.font=`${i===0?'950':'750'} ${i===0?(small?9:12):fontSize}px system-ui`;ctx.fillText(row,x+9,y+7+i*lineHeight);});
+        ctx.restore();
+      }
       function drawCheckpointFlags() {
         for(let i=0;i<currentQuestions.length;i++) {
           const x=currentQuestions[i].x-camera;if(x<-15||x>width+15)continue;
@@ -624,7 +626,6 @@
       function frame(time) { const dt=Math.min(.032,(time-last)/1000||0);last=time;update(dt);render();requestAnimationFrame(frame); }
       const keyMap={ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right',ArrowUp:'jump',' ':'jump',w:'jump',ArrowDown:'crouch',s:'crouch'};
       window.addEventListener('keydown',e=>{
-        if(!gameStarted){if(e.key==='Enter'||e.key===' '){e.preventDefault();startGame();}return;}
         if(player?.dead){if(!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();reset(returnToStart);}return;}
         const action=keyMap[e.key]||keyMap[e.key.toLowerCase()];if(action){e.preventDefault();input[action]=true;}
       });
@@ -641,8 +642,6 @@
       document.querySelector('#restart').addEventListener('click',()=>reset(true));
         document.querySelector('#death-again').addEventListener('click',()=>reset(returnToStart));
       document.querySelector('#talk-close').addEventListener('click',closeTalk);
-      function startGame(){if(gameStarted)return;gameStarted=true;instructions.classList.remove('show');say('Move, jump, and crouch through the corridor.');}
-      document.querySelector('#start-game').addEventListener('click',startGame);
       document.querySelector('#again').addEventListener('click',advanceLevel);
       window.addEventListener('resize',()=>{const onGround=player&&player.onGround;resize();if(onGround)player.y=floorY()-player.h;});
       function resize(){const rect=canvas.getBoundingClientRect();dpr=Math.min(window.devicePixelRatio||1,2);width=Math.max(320,rect.width);height=width<560?Math.max(200,width*.55):420;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);}
