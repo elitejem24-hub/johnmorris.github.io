@@ -1,25 +1,37 @@
 <!doctype html>
+<!-- HTML (HyperText Markup Language) gives the page its structure. Tags such as <main> and <button> describe the parts of the page to the browser. -->
 <html lang="en">
 <head>
+  <!-- The head contains page information and links to files; its contents are mostly not shown in the page itself. -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- This browser security policy limits the page to its own script and style files and blocks unneeded external connections. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'none'; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; manifest-src 'none'">
   <meta name="theme-color" content="#ffffff">
   <title>One More Step — corridor run</title>
+  <!-- CSS (Cascading Style Sheets) controls appearance. This link loads those rules from style.css. -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- The body contains the visible game and its controls. -->
   <main>
+    <!-- The top bar shows the game's name and current level. -->
     <div class="top"><div class="brand"><i class="mark"></i> Tiny Trouble Club</div><div id="level-heading">Level no. 01</div></div>
+    <!-- This card groups the game screen, progress display, controls, and popup panels. -->
     <section class="card" aria-labelledby="title">
       <p class="eyebrow">A tiny test of patience</p>
       <h1 id="title">ONE MORE<br><span>STEP.</span></h1>
       <p class="intro">Make it to the other side. Keep moving.</p>
+      <!-- HUD means heads-up display: the badges and bar show the player's current progress. The Best badge is saved between visits. -->
       <div class="hud"><div class="stats"><span class="badge" id="level-badge">Level 1 / 3</span><span class="badge">Falls: <b id="falls">0</b></span><span class="badge">Distance: <b id="distance">0%</b></span><span class="badge">Best: <b id="best-distance">0%</b></span></div><div class="meter" aria-label="Progress"><div class="meter-fill" id="meter"></div></div></div>
+      <!-- The canvas is a blank drawing surface; JavaScript draws the corridor and stick figure on it. -->
       <div class="scene-wrap"><canvas id="scene" aria-label="Side-view corridor game. Move, jump, and crouch."></canvas></div>
+      <!-- This live message area gives short updates without moving the rest of the page. -->
       <div class="message" id="message" role="status" aria-live="polite">Move right. Jump with Space or ↑.</div>
+      <!-- Keyboard and touch controls let players use a computer or phone. -->
       <div class="under"><div class="controls-note">Move: <b>← → / A D</b> &nbsp; Jump: <b>Space / ↑</b> &nbsp; Crouch: <b>↓ / S</b> &nbsp; Nearby characters and trees interact automatically.</div><button class="restart" id="restart" type="button">RESTART ↻</button></div>
       <div class="touch-controls" aria-label="Touch controls"><div class="touch-group"><button class="pad" data-hold="left" aria-label="Move left">←</button><button class="pad" data-hold="right" aria-label="Move right">→</button></div><button class="pad crouch" data-hold="crouch" aria-label="Crouch">CROUCH</button><button class="pad jump" data-jump aria-label="Jump">JUMP</button></div>
+      <!-- These panels are hidden until the game needs them: level finished, checkpoint quiz, death, or an interaction. -->
       <div class="finish" id="finish" aria-live="polite"><div><div class="overlay-icon">✓</div><h2 id="finish-title">LEVEL CLEAR.</h2><p id="finish-copy">You made it through. For now.</p><button id="again" type="button">NEXT LEVEL →</button></div></div>
       <div class="quiz" id="quiz" aria-live="polite"><div class="quiz-inner"><div class="quiz-tag" id="quiz-tag">Checkpoint question</div><h2>TRUE OR FALSE?</h2><p id="quiz-question"></p><div class="quiz-actions"><button data-answer="true" type="button">TRUE</button><button data-answer="false" type="button">FALSE</button></div></div></div>
       <div class="death" id="death" aria-live="assertive"><div><div class="overlay-icon">☠</div><h2>YOU DIED.</h2><p id="death-copy">That was unfortunate.</p><button id="death-again" type="button">TRY AGAIN ↻</button><p class="death-hint">Press any key or click Try Again to continue.</p></div></div>
@@ -27,6 +39,7 @@
     </section>
     <footer>No login. Three corridors. Many chances to get annoyed.</footer>
   </main>
+  <!-- JavaScript controls the game. The defer attribute waits until the HTML above is read before running the file. -->
   <script src="script.js" defer></script>
 </body>
 </html>

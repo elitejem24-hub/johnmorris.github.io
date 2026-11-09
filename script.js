@@ -1,13 +1,20 @@
+    // JavaScript (often shortened to JS) adds behavior to the HTML page. A variable is a named place to keep a value: const names a value that will not be reassigned, while let names one that can change.
+    // The DOM (Document Object Model) is the browser's in-memory tree of HTML elements. querySelector finds an element in that tree so the game can update it.
     (() => {
+      // The canvas is the drawing surface. Its 2D context (ctx) is the set of drawing tools used for the player, ground, and hazards.
       const canvas=document.querySelector('#scene'),ctx=canvas.getContext('2d');
+      // These references connect game code to messages, popups, and score displays in index.html.
       const message=document.querySelector('#message'),finish=document.querySelector('#finish'),quiz=document.querySelector('#quiz'),deathPanel=document.querySelector('#death'),talk=document.querySelector('#talk');
       const quizQuestion=document.querySelector('#quiz-question'),quizTag=document.querySelector('#quiz-tag');
       const deathCopy=document.querySelector('#death-copy'),talkTitle=document.querySelector('#talk-title'),talkCopy=document.querySelector('#talk-copy'),talkActions=document.querySelector('#talk-actions'),talkClose=document.querySelector('#talk-close');
       const fallsEl=document.querySelector('#falls'),distanceEl=document.querySelector('#distance'),meter=document.querySelector('#meter'),bestDistanceEl=document.querySelector('#best-distance');
+      // Main game settings and the four current button/keyboard states.
       let worldLength=3000,levelIndex=0,gravity=2050,runSpeed=300,jumpSpeed=700;
       const input={left:false,right:false,jump:false,crouch:false};
+      // Helper functions return a random number or shuffle a copied list without changing the original list.
       const random=(min,max)=>min+Math.random()*(max-min);
       const shuffled=items=>{const result=[...items];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}return result;};
+      // Each level is an object (a group of named values). Arrays inside it list the ground sections, stepping stones, traps, question, and signs.
       const levels=[
         {length:3000,speed:285,terrain:[[0,430,0],[510,900,-30],[980,1400,0],[1490,1950,-35],[2040,3000,0]],stones:[[1415,-28],[1455,-58]],movingStones:false,traps:[
           {kind:'fakeFloor',x:650,width:76},{kind:'press',x:820},{kind:'spikes',x:1580,width:70},{kind:'falseExit',x:2240}
@@ -19,8 +26,11 @@
           {kind:'fakeFloor',x:720,width:90},{kind:'press',x:1190},{kind:'echoJump',x:2280,width:130},{kind:'wind',x:2930,width:200},{kind:'oneWay',x:3410,width:85},{kind:'boulder',x:4160},{kind:'falseExit',x:4430}
         ],question:{x:1105,text:'True or false: this sentence has no correct answer.',answer:false,correct:'False. You have discovered the loophole. Enjoy the checkpoint.'},signs:[[330,'LEVEL THREE. YOUR THUMB LOOKS TIRED.'],[1580,'YOU ARE DOING GREAT. (UNVERIFIED)'],[2700,'THAT JUMP WAS ALMOST A JUMP.'],[4300,'SO CLOSE. PROBABLY.']]}
       ];
+      // localStorage is a small browser-owned key/value store: it keeps this player's records on this device, without an account or server.
+      // This key names the saved record. JSON is a text format used here to turn the list of level records into text and back again.
       const bestStorageKey='one-more-step-best-distance-v1';
       function loadBestDistances() {
+        // Start with zero for each level, then safely replace those values with valid saved percentages when available.
         const empty=levels.map(()=>0);
         try {
           const saved=JSON.parse(localStorage.getItem(bestStorageKey)||'null');
@@ -29,6 +39,7 @@
         } catch { return empty; }
       }
       let bestDistances=loadBestDistances();
+      // True/false questions are kept in one list so a run can draw from the same collection.
       const questionBank=[
         {id:'flamingo',text:'A group of flamingos is called a flamboyance.',answer:true,correct:'True. The flamingos hired a very good publicist.'},
         {id:'banana-berry',text:'Botanically speaking, a banana is a berry.',answer:true,correct:'True. Fruit classification remains deeply unserious.'},
@@ -61,8 +72,10 @@
         {id:'blue-whales',text:'The blue whale is the largest animal known to have lived on Earth.',answer:true,correct:'True. The ocean has a very large champion.'},
         {id:'spiders-sleep',text:'People regularly swallow several spiders in their sleep each year.',answer:false,correct:'False. That is a made-up bedtime horror story.'}
       ];
+      // A Set remembers question IDs already used so a question is not repeated in the current run.
       const usedQuestionIds=new Set();
       function drawQuestion() {
+        // Pick an unused trivia question; after the list is exhausted, create a fresh even/odd question.
         const unused=questionBank.filter(q=>!usedQuestionIds.has(q.id));
         if(unused.length) { const q=unused[Math.floor(Math.random()*unused.length)];usedQuestionIds.add(q.id);return {...q}; }
         let n=1001+Math.floor(Math.random()*1000000000),id=`number-${n}`;
@@ -71,15 +84,20 @@
         const q={id,text:`True or false: ${n} is an even number.`,answer,correct:answer?'True. Numbers remain committed to their bit.':'False. Even the number is trying to trip you.'};
         usedQuestionIds.add(q.id);return q;
       }
+      // These values track screen size, camera position, game progress, popup state, and animation timers.
       let width=900,height=420,dpr=1,last=0,camera=0,falls=0,won=false,flash=0,walkTime=0,effectTimer=0,effectType='',quizActive=false,talkActive=false,quizIndex=0,checkpointX=72,checkpointY=0;
+      // These arrays hold the current run's player, traps, platforms, scenery, and interactable characters.
       let player,traps=[],stones=[],currentQuestions=[],currentSigns=[],scenery=[],activeTerrain=[],checkpointQuestionX=1000,trees=[],npcs=[],returnToStart=false,pendingInteraction=null;
+      // The floor's default vertical position is calculated from the canvas height so it adapts to screen size.
       const floorY=()=>height*.72;
       function trapWidth(kind) {
+        // Return a random width appropriate to the selected trap type.
         const ranges={fakeFloor:[68,104],gap:[72,112],press:[58,76],spikes:[54,82],falseExit:[46,46],ceiling:[88,124],boulder:[38,48],arrows:[54,82],oneWay:[62,92],wind:[110,145],fakeCheckpoint:[24,24],echoJump:[90,130]};
         const [a,b]=ranges[kind]||[0,0];return a===b?a:Math.round(random(a,b));
       }
 
       function createRun() {
+        // Build a fresh variation of the selected level while keeping its jumps and gaps within the intended layout.
         const data=levels[levelIndex],scale=[1.34,1.36,1.38][levelIndex];worldLength=Math.round(data.length*scale);runSpeed=data.speed;
         activeTerrain=data.terrain.map(([a,b,dy],i)=>{const edge=i===0||i===data.terrain.length-1,shift=edge?0:random(-44,44),heightJitter=edge?0:random(-10,10);return [a*scale+shift,b*scale+shift,dy+heightJitter];});
         const types=shuffled(data.traps.map(t=>t.kind)),positions=data.traps.map(t=>t.x*scale).sort((a,b)=>a-b);
@@ -104,6 +122,7 @@
         if(openSegments.length&&Math.random()<.34){const segment=openSegments.pop();npcs.push({x:placeOnSegment(segment),type:shuffled(['helper','puncher','liar','drinker'])[0],used:false,punchTime:0,punched:false});}
       }
       function reset(full=true) {
+        // A full reset creates a new run; a checkpoint reset keeps this run's map but restores traps and stepping stones.
         resetInteractions();
         if(full) { falls=0;quizIndex=0;checkpointX=72;checkpointY=floorY()-52; }
         if(full) { createRun();currentQuestions=[{...drawQuestion(),x:checkpointQuestionX}]; }
@@ -121,11 +140,14 @@
         document.querySelector('#level-heading').textContent=`Level no. 0${levelIndex+1}`;
         say(full?'Move, jump, and crouch through the corridor.':'Back to your last checkpoint. The traps have reset.');
       }
+      // Put safe plain text into the status line; textContent displays text without treating it as HTML code.
       function say(text) { message.textContent=text; }
       function terrain() {
+        // Convert the level's ground coordinates into rectangles that the game can draw and collide with.
         return activeTerrain.map(([x,end,dy])=>({x,w:end-x,y:floorY()+dy,kind:'ground'}));
       }
       function getPlatforms() {
+        // Build the surfaces the player can stand on, cutting away any floor that a trap has opened.
         const platforms=[];
         for(const base of terrain()) {
           let pieces=[{x:base.x,w:base.w,y:base.y,kind:'ground'}];
@@ -144,6 +166,7 @@
         return platforms;
       }
       function activateTraps(dt) {
+        // Start nearby traps and count down their short activation delay. dt is the time since the previous animation frame.
         for(const t of traps) {
           if(!t.triggered&&player.x+player.w>=t.x) { t.triggered=true;t.wait=t.delay; }
           if(t.triggered&&!t.activated) {
@@ -153,14 +176,17 @@
         }
       }
       function die(reason='The floor left. You did not.',toStart=false) {
+        // Freeze the player and show the death panel until the player chooses to retry.
         if(player.dead)return;
         resetInteractions();
         player.dead=true;returnToStart=toStart;falls++;fallsEl.textContent=falls;
         input.left=false;input.right=false;input.jump=false;input.crouch=false;
         deathCopy.textContent=reason;deathPanel.classList.add('show');say(toStart?'Back to the beginning. The level wanted to see you again.':'Take your time. The floor has already stopped helping.');
       }
+      // A shield blocks one ordinary hazard hit; without one, use the normal death flow.
       function hurt(reason) { if(player.shield){player.shield=false;player.invuln=.9;say('Your helpful friend took the hit. They look oddly pleased.');return;}die(reason); }
       function fallTaunt() {
+        // Choose a joke that matches the trap or stepping stone the player just fell from.
         const trap=traps.find(t=>t.activated&&player.x+player.w>t.x&&player.x<t.x+t.width&&(t.kind==='fakeFloor'||t.kind==='oneWay'));
         if(trap?.kind==='fakeFloor')return 'You fell for the fake floor. Literally. It was a floor with trust issues.';
         if(trap?.kind==='oneWay')return 'You chose the one-way floor. It chose a one-way trip.';
@@ -169,11 +195,14 @@
         if(stones.some(s=>s.falling&&player.x+player.w>s.x&&player.x<s.x+s.w))return 'That stepping stone had a very short career. You trusted it anyway.';
         return 'You tried to cross a chasm on confidence alone. Confidence was not load-bearing.';
       }
+      // Check whether two rectangles overlap; this is the basic collision check for hazards.
       function overlap(a,b) { return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y; }
       function askCheckpoint(question) {
+        // Show the true/false question when the player reaches a real checkpoint.
         quizActive=true;quizQuestion.textContent=question.text;quizTag.textContent=`Checkpoint ${quizIndex+1} of ${currentQuestions.length}`;quiz.classList.add('show');
       }
       function answerCheckpoint(value) {
+        // Compare the selected answer with the correct one, then save the checkpoint or restart the level.
         const q=currentQuestions[quizIndex];quiz.classList.remove('show');quizActive=false;
         if(value===q.answer) {
           checkpointX=player.x;checkpointY=surfaceAt(player.x)-52;player.h=52;player.crouching=false;input.crouch=false;player.y=checkpointY;player.vy=0;player.onGround=true;quizIndex++;
@@ -183,16 +212,19 @@
         }
       }
       function findNearbyInteractable() {
+        // Find a nearby unused character, tree, fake door, or fake flag that should open a choice popup.
         const nearby=items=>items.find(item=>!item.used&&Math.abs(item.x-player.x)<48&&Math.abs(surfaceAt(item.x)-(player.y+player.h))<85);
         const fakeMarkers=traps.filter(item=>item.kind==='falseExit'||item.kind==='fakeCheckpoint');
         return nearby(npcs)||nearby(trees)||nearby(fakeMarkers);
       }
       function resetInteractions() {
+        // Make interactables available again after a death or restart.
         for(const item of [...trees,...npcs]){item.used=false;if('punchTime' in item){item.punchTime=0;item.punched=false;item.punchFatal=false;}}
         for(const item of traps)if(item.kind==='falseExit'||item.kind==='fakeCheckpoint')item.used=false;
         pendingInteraction=null;talkActive=false;if(talk){talk.classList.remove('show');talkActions.replaceChildren();talkClose.hidden=true;}
       }
       function interact(target) {
+        // Pause the run and show the choices belonging to the object the player walked up to.
         if(player.dead||won||quizActive||talkActive)return;
         target=target||findNearbyInteractable();
         if(!target)return;
@@ -207,17 +239,21 @@
         else showChoice('QUESTIONABLE ADVICE.','“The fake door is the real exit.” They avoid eye contact.',[['Trust them','trust'],['Ignore that','leave']]);
       }
       function showChoice(title,copy,choices) {
+        // Fill the popup with a title, explanation, and one button for each available choice.
         talkTitle.textContent=title;talkCopy.textContent=copy;talkActions.replaceChildren();talkClose.hidden=true;
         for(const [label,choice] of choices){const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',()=>resolveInteraction(choice));talkActions.append(button);}
         talk.classList.add('show');
       }
       function showOutcome(title,copy,effect='') {
+        // Replace the choices with the result text and a Continue button; optional effects are animated in the game view.
         talkTitle.textContent=title;talkCopy.textContent=copy;talkActions.replaceChildren();talkClose.hidden=false;
         if(effect){effectType=effect;effectTimer=1.25;}
       }
+      // Good choices grant a one-hit shield; bad choices briefly reverse movement and play a visual effect.
       function giveGoodResult(copy) { player.shield=true;showOutcome('A SURPRISING WIN.',copy,'good'); }
       function giveBadResult(copy) { player.dizzy=3.2;showOutcome('NOT YOUR LUCKY DAY.',copy,'bad'); }
       function resolveInteraction(choice) {
+        // Apply the selected result for a tree, character, fake door, or fake checkpoint.
         const target=pendingInteraction;if(!target)return;
         const fakeDoor=target.kind==='falseExit',fakeFlag=target.kind==='fakeCheckpoint',tree=trees.includes(target);
         if(fakeDoor||fakeFlag){
@@ -242,11 +278,13 @@
         else showOutcome('WISE SUSPICION.','You ignored the advice. The liar calls you paranoid, which feels like confirmation.');
       }
       function closeTalk() {
+        // Close the finished popup and let the game continue.
         if(!talkActive||talkClose.hidden)return;
         talkActive=false;talk.classList.remove('show');
         pendingInteraction=null;say('Back to the important business of not falling over.');
       }
       function drawInteractables() {
+        // Draw the rare trees and stick figures on the canvas; punchers extend an arm during their swing.
         for(const tree of trees){const x=tree.x-camera,y=surfaceAt(tree.x);if(x<-30||x>width+30)continue;
           ctx.save();ctx.strokeStyle='#050505';ctx.lineWidth=3;line(x,y,x,y-42*tree.scale,3);line(x,y-25*tree.scale,x-15*tree.scale,y-37*tree.scale,2);line(x,y-30*tree.scale,x+16*tree.scale,y-42*tree.scale,2);
           ctx.beginPath();ctx.arc(x,y-47*tree.scale,13*tree.scale,0,Math.PI*2);ctx.stroke();ctx.restore();
@@ -262,6 +300,7 @@
         }
       }
       function drawFakeMarkers() {
+        // Draw the visible fake exit door and checkpoint flag on the path.
         for(const t of traps){
           if(t.kind!=='falseExit'&&t.kind!=='fakeCheckpoint')continue;
           const x=t.x-camera,y=surfaceAt(t.x);if(x<-60||x>width+60)continue;
@@ -277,6 +316,7 @@
         }
       }
       function completeLevel() {
+        // Show the completion panel and choose its message and button label for this level.
         won=true;finish.classList.add('show');
         const title=document.querySelector('#finish-title'),copy=document.querySelector('#finish-copy'),button=document.querySelector('#again');
         if(levelIndex<levels.length-1) { title.textContent=`LEVEL ${levelIndex+1} CLEAR.`;copy.textContent='The next corridor has heard about you.';button.textContent='NEXT LEVEL →'; }
@@ -284,10 +324,13 @@
         say('You made it through.');
       }
       function advanceLevel() {
+        // Move to the next level, or start again at level one after the final level.
         if(levelIndex<levels.length-1) { levelIndex++;reset(true); }
         else { levelIndex=0;reset(true); }
       }
       function update(dt) {
+        // Advance the game by one animation frame: move the player, update traps, check collisions, and refresh the score.
+        // First update timers and moving hazards; dt means “delta time,” the seconds since the previous frame.
         flash=Math.max(0,flash-dt);
         if(won)return;
         if(quizActive||talkActive)return;
@@ -321,6 +364,7 @@
             t.force=Math.sin(t.age*5.3)*240;
           }
         }
+        // Falling stones use gravity, and carry the player along if they are standing on one.
         for(const s of stones) if(s.falling) {
           const old=s.y;s.vy+=1500*dt;s.y+=s.vy*dt;
           if(player.support===s)player.y+=s.y-old;
@@ -329,6 +373,7 @@
           const old=s.x;s.x=s.moveBase+Math.sin(performance.now()/380+s.phase)*25;
           if(player.support===s)player.x+=s.x-old;
         }
+        // Change the player's height for crouching, then calculate horizontal movement and platform blocking.
         if(player.onGround&&input.crouch&&!player.crouching) { player.y+=player.h-29;player.h=29;player.crouching=true; }
         else if((!input.crouch||!player.onGround)&&player.crouching) { player.y-=52-player.h;player.h=52;player.crouching=false; }
         const prevX=player.x,prevY=player.y,prevBottom=prevY+player.h;
@@ -349,6 +394,7 @@
         player.x=nextX;player.vx=dx;
         activateTraps(dt);
         if(Math.abs(dx)>0&&player.onGround)walkTime+=dt*Math.abs(dx)/runSpeed;
+        // Jumping and gravity update the player's vertical position and landing on platforms.
         if(input.jump&&player.onGround) {
           player.vy=-jumpSpeed;player.onGround=false;player.support=null;walkTime=0;
           const echo=traps.find(t=>t.kind==='echoJump'&&t.activated&&player.x+player.w>t.x&&player.x<t.x+t.width);
@@ -366,6 +412,7 @@
             if(player.support) { player.support.wait+=dt;if(player.support.wait>.3)player.support.falling=true; }
           }
         }
+        // Check for falling off-screen, then check collisions with active hazards and characters.
         if(player.y>height+45) { die(fallTaunt());return; }
         const box={x:player.x+2,y:player.y+2,w:player.w-4,h:player.h-4};
         for(const t of traps) {
@@ -388,6 +435,7 @@
             if(npc.punchFatal)die('The handshake was a punch. You are out cold, and the stranger is very proud of their greeting.',quizIndex===0);
           }
         }
+        // Start nearby interactions, ask checkpoint questions, and update progress and the saved best distance.
         const encounter=findNearbyInteractable();if(encounter)interact(encounter);
         if(player.dead)return;
         if(quizIndex<currentQuestions.length&&player.onGround&&player.x+player.w>=currentQuestions[quizIndex].x)askCheckpoint(currentQuestions[quizIndex]);
@@ -396,16 +444,21 @@
         const pct=Math.min(100,Math.floor(player.x/(worldLength-player.w)*100));distanceEl.textContent=pct+'%';meter.style.width=pct+'%';
         if(pct>bestDistances[levelIndex]) {
           bestDistances[levelIndex]=pct;bestDistanceEl.textContent=pct+'%';
-          try { localStorage.setItem(bestStorageKey,JSON.stringify(bestDistances)); } catch { /* Keep the in-memory record if storage is unavailable. */ }
+          try { localStorage.setItem(bestStorageKey,JSON.stringify(bestDistances)); } catch { // Keep the in-memory record if storage is unavailable.
+          }
         }
       }
+      // Find the height of the floor or raised path at a horizontal world position.
       function surfaceAt(x) { const p=terrain().find(s=>x>=s.x&&x<=s.x+s.w);return p?p.y:floorY(); }
+      // Check whether a drawn line, such as a limb or projectile, passes through a rectangle.
       function segmentHitsRect(x1,y1,x2,y2,r,pad) {
         const steps=24;
         for(let i=0;i<=steps;i++){const q=i/steps,x=x1+(x2-x1)*q,y=y1+(y2-y1)*q;if(x>=r.x-pad&&x<=r.x+r.w+pad&&y>=r.y-pad&&y<=r.y+r.h+pad)return true;}
         return false;
       }
+      // Draw a straight line on the canvas; ctx is the canvas drawing context.
       function line(x1,y1,x2,y2,w=2) { ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke(); }
+      // Draw the stick figure in its walking, jumping, or crouching pose.
       function drawPlayer(sx) {
         const bob=player.onGround&&Math.abs(player.vx)>0?Math.sin(walkTime*13)*2:0;
         const cx=sx+player.w/2,cy=player.y+bob;
@@ -429,6 +482,7 @@
         }
         ctx.restore();
       }
+      // Draw the short visual effect shown when a drink or other interaction helps or harms the player.
       function drawEffect() {
         if(effectTimer<=0)return;
         const x=player.x-camera+player.w/2,y=player.y-8,t=performance.now()/170,alpha=Math.min(1,effectTimer/.22);
@@ -440,6 +494,7 @@
         }
         ctx.restore();
       }
+      // Paint the complete scene: background, platforms, hazards, characters, and player.
       function render() {
         const fy=floorY();ctx.clearRect(0,0,width,height);ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);
         ctx.strokeStyle='#050505';ctx.lineWidth=2;line(0,13,width,13,2);line(0,height-14,width,height-14,2);
@@ -476,6 +531,7 @@
         if(!player.dead)drawEffect();
         if(flash>0){ctx.fillStyle=`rgba(255,255,255,${flash/.13*.78})`;ctx.fillRect(0,0,width,height);}
       }
+      // Add faint brick lines to the corridor wall for texture.
       function drawBrickwork() {
         ctx.save();ctx.beginPath();ctx.rect(0,14,width,floorY()-20);ctx.clip();ctx.strokeStyle='#050505';ctx.globalAlpha=.17;ctx.lineWidth=.7;
         const spacing=74,rowH=22,first=Math.floor(camera/spacing)*spacing;
@@ -487,6 +543,7 @@
         }
         ctx.restore();
       }
+      // Draw distant layered hills to make the scenery feel deeper.
       function drawDepth() {
         ctx.save();ctx.strokeStyle='#050505';ctx.globalAlpha=.24;ctx.lineWidth=1;
         const start=Math.floor(camera/170)*170;
@@ -501,6 +558,7 @@
         }
         ctx.restore();
       }
+      // Draw decorative trees and plants in the distance; these are scenery only.
       function drawNature() {
         ctx.save();ctx.strokeStyle='#050505';ctx.fillStyle='#fff';ctx.globalAlpha=.28;ctx.lineWidth=1.2;
         for(const item of scenery) {
@@ -514,6 +572,7 @@
         }
         ctx.restore();
       }
+      // Show the movement instructions on the wall near the starting area.
       function drawStartInstructions() {
         if(camera>420)return;
         const x=16-camera,y=20,panelW=Math.min(430,width-32),small=height<300,fontSize=small?7.3:9,lineHeight=small?12:16;
@@ -524,6 +583,7 @@
         rows.forEach((row,i)=>{ctx.font=`${i===0?'950':'750'} ${i===0?(small?9:12):fontSize}px system-ui`;ctx.fillText(row,x+9,y+7+i*lineHeight);});
         ctx.restore();
       }
+      // Draw the flags that mark the checkpoint question locations.
       function drawCheckpointFlags() {
         for(let i=0;i<currentQuestions.length;i++) {
           const x=currentQuestions[i].x-camera;if(x<-15||x>width+15)continue;
@@ -531,6 +591,7 @@
           ctx.beginPath();ctx.moveTo(x,y-32);ctx.lineTo(x+15,y-26);ctx.lineTo(x,y-20);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();ctx.stroke();
         }
       }
+      // Put the game's mocking signs along the corridor.
       function drawMockingSigns() {
         for(const [wx,text] of currentSigns) {
           const x=wx-camera;if(x<-160||x>width+160)continue;const y=surfaceAt(wx);
@@ -542,27 +603,40 @@
           ctx.fillStyle='#050505';rows.forEach((row,i)=>ctx.fillText(row,bx+6,by+12+i*10));
         }
       }
+      // Repeat the update and drawing steps using requestAnimationFrame, the browser's animation scheduler.
       function frame(time) { const dt=Math.min(.032,(time-last)/1000||0);last=time;update(dt);render();requestAnimationFrame(frame); }
+      // Match keyboard keys to game actions so the same movement code works for different keys.
       const keyMap={ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right',ArrowUp:'jump',' ':'jump',w:'jump',ArrowDown:'crouch',s:'crouch'};
+      // An event listener is a function the browser runs when something happens, such as a key press.
+      // This listener handles movement keys and lets any key restart after a death.
       window.addEventListener('keydown',e=>{
         if(player?.dead){if(!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();reset(returnToStart);}return;}
         const action=keyMap[e.key]||keyMap[e.key.toLowerCase()];if(action){e.preventDefault();input[action]=true;}
       });
+      // Stop movement when a key is released.
       window.addEventListener('keyup',e=>{const action=keyMap[e.key]||keyMap[e.key.toLowerCase()];if(action)input[action]=false;});
+      // Let the true/false buttons answer the checkpoint question.
       document.querySelectorAll('#quiz [data-answer]').forEach(button=>button.addEventListener('click',()=>answerCheckpoint(button.dataset.answer==='true')));
+      // Clear held keys if the browser window loses focus, so movement cannot get stuck.
       window.addEventListener('blur',()=>{input.left=false;input.right=false;input.jump=false;input.crouch=false;});
+      // Support touch or mouse controls: hold movement buttons, then release them to stop.
       document.querySelectorAll('[data-hold]').forEach(button=>{
         const action=button.dataset.hold;
         button.addEventListener('pointerdown',e=>{e.preventDefault();input[action]=true;button.classList.add('active');button.setPointerCapture(e.pointerId);});
         const release=()=>{input[action]=false;button.classList.remove('active');};
         button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
       });
+      // The jump button triggers one jump when tapped.
       document.querySelector('[data-jump]').addEventListener('pointerdown',e=>{e.preventDefault();input.jump=true;});
+      // Connect the restart, death, interaction, and next-level buttons to their actions.
       document.querySelector('#restart').addEventListener('click',()=>reset(true));
         document.querySelector('#death-again').addEventListener('click',()=>reset(returnToStart));
       document.querySelector('#talk-close').addEventListener('click',closeTalk);
       document.querySelector('#again').addEventListener('click',advanceLevel);
+      // Resize the game drawing area when the browser window changes size.
       window.addEventListener('resize',()=>{const onGround=player&&player.onGround;resize();if(onGround)player.y=floorY()-player.h;});
+      // Set the canvas pixel size to match its displayed size, including high-resolution screens.
       function resize(){const rect=canvas.getBoundingClientRect();dpr=Math.min(window.devicePixelRatio||1,2);width=Math.max(320,rect.width);height=width<560?Math.max(200,width*.55):420;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);}
+      // Prepare the canvas, start a fresh game, and begin the repeating animation frames.
       resize();reset(true);requestAnimationFrame(frame);
     })();
