@@ -60,5 +60,5 @@
     .talk-actions button:hover { background:#050505;color:#fff; }
     .finish button:focus-visible,.pad:focus-visible,.restart:focus-visible { outline:3px solid #050505;outline-offset:3px; }
     footer { text-align:center;margin-top:17px;color:#333;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase; }
-    @media(max-width:600px) { body{padding:14px 8px 20px}.card{padding:16px 11px 15px}.touch-controls{display:flex;gap:6px}.touch-group{gap:5px}.pad{width:47px;height:43px}.jump{width:62px}.crouch{width:63px}.top{font-size:9px}.under{align-items:center} }
+    @media(max-width:600px) { body{padding:14px 8px 20px}.card{padding:16px 11px 15px}.touch-controls{display:flex;gap:6px}.touch-group{gap:5px}.pad{width:47px;height:43px}.jump{width:62px}.crouch{width:63px}.top{font-size:9px}.under{align-items:center}.stats{flex-wrap:wrap;gap:5px}.hud{flex-wrap:wrap}.meter{width:100%} }
     @media(prefers-reduced-motion:reduce) { *,*:before,*:after{transition:none!important} }
